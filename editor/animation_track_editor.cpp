@@ -3155,6 +3155,16 @@ void AnimationTrackEdit::append_to_selection(const Rect2 &p_box, bool p_deselect
 	}
 }
 
+void AnimationTrackEdit::add_to_selection() {
+	if (animation->track_is_compressed(track)) {
+		return; // Compressed keyframes can't be edited
+	}
+
+	for (int i = animation->track_get_key_count(track) - 1; i >= 0; i--) {
+		emit_signal(SNAME("select_key"), i, false);
+	}
+}
+
 void AnimationTrackEdit::_bind_methods() {
 	ADD_SIGNAL(MethodInfo("timeline_changed", PropertyInfo(Variant::FLOAT, "position"), PropertyInfo(Variant::BOOL, "timeline_only")));
 	ADD_SIGNAL(MethodInfo("remove_request", PropertyInfo(Variant::INT, "track")));
@@ -5812,6 +5822,19 @@ void AnimationTrackEditor::_edit_menu_pressed(int p_option) {
 			undo_redo->commit_action();
 		} break;
 
+		case EDIT_SELECT_ALL: {
+			EditorUndoRedoManager *undo_redo = EditorUndoRedoManager::get_singleton();
+			undo_redo->create_action("Select All");
+
+			for (int i = 0; i < track_edits.size(); i++) {
+				track_edits[i]->add_to_selection();
+			}
+
+			undo_redo->add_do_method(this, "_redraw_tracks");
+			undo_redo->add_undo_method(this, "_redraw_tracks");
+			undo_redo->commit_action();
+		} break;
+
 		case EDIT_SCALE_SELECTION:
 		case EDIT_SCALE_FROM_CURSOR: {
 			scale_dialog->popup_centered(Size2(200, 100) * EDSCALE);
@@ -6666,6 +6689,8 @@ AnimationTrackEditor::AnimationTrackEditor() {
 	edit->set_tooltip_text(TTR("Animation properties."));
 	edit->get_popup()->add_item(TTR("Copy Tracks"), EDIT_COPY_TRACKS);
 	edit->get_popup()->add_item(TTR("Paste Tracks"), EDIT_PASTE_TRACKS);
+	edit->get_popup()->add_separator();
+	edit->get_popup()->add_item(TTR("Select All Keyfrmes"), EDIT_SELECT_ALL);
 	edit->get_popup()->add_separator();
 	edit->get_popup()->add_item(TTR("Scale Selection"), EDIT_SCALE_SELECTION);
 	edit->get_popup()->add_item(TTR("Scale From Cursor"), EDIT_SCALE_FROM_CURSOR);
